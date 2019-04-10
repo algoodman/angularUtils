@@ -1,5 +1,6 @@
 import {NgModule} from '@angular/core';
 
+export * from './auth.service';
 export * from './broadcaster.service';
 export * from './local-storage.service';
 

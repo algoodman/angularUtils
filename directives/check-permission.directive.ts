@@ -144,7 +144,7 @@ export class ItemCheckPermissionDirective extends BaseComponent implements After
     super();
 
     this.addSubscription(
-      this.broadcaster.listenBroadcastEvent<string>(BroadcastKeys.UserAuthenticated).subscribe((broadcastEvent) => {      
+      this.broadcaster.listenBroadcastEvent<string>('UserAuthenticated').subscribe((broadcastEvent) => {
         this.processPermission();
       })
     )
