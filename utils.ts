@@ -1,13 +1,19 @@
 /**
  *
  */
-import {CommonRegex} from './common-regex';
+
+import {FormGroup, NgForm} from '@angular/forms';
 
 import * as _ from 'lodash';
 import * as S from 'string';
-
 import * as moment from 'moment-timezone';
 
+export const HqTimeZone = 'America/Los_Angeles';
+export const EmailRegexp: RegExp = /^([\w-]+(?:\.[\w-]+)*)@((?:[\w-]+\.)*\w[\w-]{0,66})\.([a-z]{2,6}(?:\.[a-z]{2})?)$/i;
+
+// see almostEqual func for the two constants below
+export const FLT_EPSILON = 1.19209290e-7; // Floating point (32-bit) epsilon for equality
+export const DBL_EPSILON = 2.2204460492503131e-16; // Double precision (64-bit) epsilon for equality
 
 export class Utils {
 
@@ -15,7 +21,8 @@ export class Utils {
 
 	private static newGuid_lut: string[];
 
-	private static LocalTimeZone = 'America/Los_Angeles';
+	private static nullPattern = /^null | null$|^[^(]* null /i;
+	private static undefinedPattern = /^undefined | undefined$|^[^(]* undefined /i;
 
 	constructor() {
 	}
@@ -42,12 +49,34 @@ export class Utils {
 	}
 
 	/**
+	 * Check whether two numbers are within a specified difference to each other.
+	 * Example: a = 1, b=1.2, absoluteDifference = 0.3, should return true because the numbers are less than 0.3 apart.
+	 * Copied from an NPM module - https://github.com/scijs/almost-equal
+	 * @param a
+	 * @param b
+	 * @param absoluteTolerance
+	 */
+	public static almostEqual(a: number, b: number, absoluteTolerance?: number): boolean {
+		if (Utils.isNil(a) || Utils.isNil(b)) {
+			return false;
+		}
+		if (Utils.isNil(absoluteTolerance)) {
+			absoluteTolerance = DBL_EPSILON;
+		}
+		const dif = Math.abs(a - b);
+		if (dif <= absoluteTolerance) {
+			return true;
+		}
+		return a === b;
+	}
+
+	/**
 	 * Convert a camel case to dash (or snake casing).
 	 * For example:  "firstName" become "first-name"
 	 */
 	public static camelToDash(str: string) {
 		return str.replace(/([A-Z])/g, function ($1) {
-			return "-" + $1.toLowerCase();
+			return '-' + $1.toLowerCase();
 		});
 	}
 
@@ -109,8 +138,8 @@ export class Utils {
 	}
 
 	public static getCookieValue(cookieName: string): any {
-		let name = cookieName + '=';
-		let ca = document.cookie.split(';');
+		const name = cookieName + '=';
+		const ca = document.cookie.split(';');
 		for (let i = 0; i < ca.length; i++) {
 			let c = ca[i];
 			while (c.charAt(0) === ' ') {
@@ -123,31 +152,34 @@ export class Utils {
 		return null;
 	}
 
-	public static getMomentFromString(dateStr: any): moment.Moment {
+	public static getMomentFromValue(dateStr: any): moment.Moment {
 		let date: moment.Moment = null;
 		if (dateStr.hasOwnProperty('_isAMomentObject') && dateStr._isAMomentObject) {
 			date = dateStr; // already a moment
 		} else if (_.isDate(dateStr)) {
-			date = moment(dateStr); // convert from date to moment
+			date = moment.tz(dateStr, HqTimeZone); // convert from date to moment
+		} else if (dateStr !== null && Utils.isInteger(dateStr)) {
+			// try converting directly from number to moment
+			date = moment.tz(dateStr, HqTimeZone);
 		} else if (dateStr !== null && (isNaN(dateStr))) {
 			// try to parse directly into a Date
 			const tmpDt = Date.parse(dateStr);
 			if (!isNaN(tmpDt)) {
-				date = moment(tmpDt);
+				date = moment.tz(tmpDt, HqTimeZone);
 			} else {
-				date = moment(dateStr, 'M/D/YYYY'); // try converting as a string.
+				date = moment.tz(dateStr, 'M/D/YYYY', HqTimeZone); // try converting as a string.
 			}
 		}
 		const DATE_FORMATS = ['M/D/YYYY', 'M-D-YYYY', 'YYYY/M/D', 'YYYY-M-D'];
 		if (date === null || !date.isValid()) {
-			date = moment(dateStr, DATE_FORMATS, true);
+			date = moment.tz(dateStr, DATE_FORMATS, true, HqTimeZone);
 		}
 
 		return date;
 	}
 
 	public static getMomentFromStringAtStartOfDay(dateStr: any): moment.Moment {
-		let dt = Utils.getMomentFromString(dateStr);
+		let dt = Utils.getMomentFromValue(dateStr);
 		if (dt && dt.isValid()) {
 			dt = dt.startOf('day');
 		}
@@ -156,7 +188,7 @@ export class Utils {
 
 	//return date as millisec for pst
 	public static getMilliSecond(inputDate: Number | Date | moment.Moment | string): number {
-		return moment.tz(inputDate, this.LocalTimeZone).valueOf();
+		return moment.tz(inputDate, HqTimeZone).valueOf();
 	}
 
 	public static getCurrentHQTime(): moment.Moment {
@@ -190,8 +222,30 @@ export class Utils {
 		}
 	}
 
+	// from https://github.com/facebookincubator/idx
+	// idx is a utility function for traversing properties on objects and arrays.
+	// Usage:
+	// User class {friends {name: string} }
+	// props.user = new User(); props.user.friends.name = 'john';
+	// Access the user.friends.name property when you aren't sure if it exists
+	// idx(props, _ => _.user.friends.name)
+	public static idx<Ti, Tv>(input: Ti, accessor: (input: Ti) => Tv) {
+		try {
+			return accessor(input);
+		} catch (error) {
+			if (error instanceof TypeError) {
+				if (this.nullPattern.test(<any>error)) {
+					return null;
+				} else if (this.undefinedPattern.test(<any>error)) {
+					return undefined;
+				}
+			}
+			throw error;
+		}
+	}
+
 	// simulate apache StringUtils
-	public static isBlank(a: string): boolean {
+	public static isBlank(a: any): boolean {
 		if (Utils.isNil(a)) {
 			return true;
 		}
@@ -204,7 +258,6 @@ export class Utils {
 		}
 		return false;
 	}
-
 
 	public static isFunction(func: any) {
 		return _.isFunction(func);
@@ -220,7 +273,7 @@ export class Utils {
 			  Math.floor(nVal) === nVal;
 	}
 
-	public static isNotBlank(a: string): boolean {
+	public static isNotBlank(a: any): boolean {
 		return !Utils.isBlank(a);
 	}
 
@@ -229,7 +282,7 @@ export class Utils {
 		if (Utils.isNil(a)) {
 			return true;
 		}
-		let b: string = a.replace(/\s/g, '');
+		const b: string = a.replace(/\s/g, '');
 		return (b.length < 1);
 	}
 
@@ -246,9 +299,9 @@ export class Utils {
 	}
 
 
-	//isObjectEmpty returns true if o is an object containing no enumerable members.
+	// isObjectEmpty returns true if o is an object containing no enumerable members.
 	public static isObjectEmpty(o: Object): boolean {
-		if (Utils.isNotNil(o) && _.isObject(o)) {
+		if (_.isObject(o)) {
 			for (const i in o) {
 				if (o[i] !== undefined && (typeof o[i]) !== 'function') {
 					return false;
@@ -261,22 +314,21 @@ export class Utils {
 	public static isValidEmail(email: string): boolean {
 		email = S(email).trim().s;
 
-		return CommonRegex.EmailRegexp.test(email);
+		return EmailRegexp.test(email);
 	}
 
-
 	public static localStorage = {
-		//Add item to local storage with optional expirationMin
+		// Add item to local storage with optional expirationMin
 		setItem: (key: string, obj: any, expirationMin?: number): any => {
 			if (!Utils.hasLocalStorage()) {
 				return null;
 			}
 			let expirationTime = null;
 			if (expirationMin) {
-				let expirationMS = expirationMin * 60 * 1000;
+				const expirationMS = expirationMin * 60 * 1000;
 				expirationTime = new Date().getTime() + expirationMS;
 			}
-			let record = {value: obj, exp: expirationTime};
+			const record = {value: obj, exp: expirationTime};
 			window['localStorage'].setItem(key, JSON.stringify(record));
 			return obj;
 		},
@@ -284,14 +336,13 @@ export class Utils {
 			if (!Utils.hasLocalStorage() || !key) {
 				return null;
 			}
-			let record = JSON.parse(window['localStorage'].getItem(key));
+			const record = JSON.parse(window['localStorage'].getItem(key));
 			if (!record) {
 				return null;
 			}
 			if (!record.exp || (new Date().getTime() <= record.exp)) {
 				return record.value;
-			}
-			else {
+			} else {
 				window['localStorage'].removeItem(key);
 				return null;
 			}
@@ -304,7 +355,21 @@ export class Utils {
 		}
 	};
 
-	//quote() produces a quoted string.This method returns a string that is like the original string except that it
+	/**
+	 * touch and validate all controls in a form or form group
+	 * @param {NgForm | FormGroup} frm
+	 */
+	public static markFormTouchedAndValidate(frm: NgForm | FormGroup): void {
+		(<any>Object).values(frm.controls).forEach(ctrl => {
+			ctrl.markAsTouched();
+			ctrl.updateValueAndValidity(); // trigger validation
+			if (ctrl.controls) {
+				ctrl.controls.forEach(c => this.markFormTouchedAndValidate(c));
+			}
+		});
+	}
+
+	// quote() produces a quoted string.This method returns a string that is like the original string except that it
 	// is wrapped in quotes and all quote and backslash characters are preceded with backslash.
 	public static quote(s: string): string {
 		let c, i, l = s.length, o = '"';
@@ -345,10 +410,10 @@ export class Utils {
 	 * Scroll the jquery element into view within the jquery container element
 	 */
 	public static scrollIntoView(element, container): void {
-		let containerTop = container.scrollTop();
-		let containerBottom = containerTop + container.height();
-		let elemTop = element[0].offsetTop;
-		let elemBottom = elemTop + element.height();
+		const containerTop = container.scrollTop();
+		const containerBottom = containerTop + container.height();
+		const elemTop = element[0].offsetTop;
+		const elemBottom = elemTop + element.height();
 		if (elemTop < containerTop) {
 			container.scrollTop(elemTop);
 		} else if (elemBottom > containerBottom) {
@@ -389,14 +454,14 @@ export class Utils {
 	public static supplant(s: string, o: Object): string {
 		return s.replace(/\{([^{}]*)\}/g,
 			  (a: string, b: any) => {
-				  let r: any = o[b];
+				  const r: any = o[b];
 				  return (String)(typeof r === 'string' || typeof r === 'number' ? r : a);
 			  }
 		);
 	}
 
 	public static toNumber(value: any): any {
-		if (typeof value == 'number') {
+		if (typeof value === 'number') {
 			return value;
 		}
 		if (_.isObject(value)) {
@@ -425,11 +490,11 @@ export class Utils {
 	}
 
 
-	//Get a new GUID string (e.g "39982d34-6496-493f-b5ca-7b96b5dbb793")
-	//http://stackoverflow.com/questions/105034/create-guid-uuid-in-javascript
-	//http://jcward.com/UUID.js
+	// Get a new GUID string (e.g "39982d34-6496-493f-b5ca-7b96b5dbb793")
+	// http://stackoverflow.com/questions/105034/create-guid-uuid-in-javascript
+	// http://jcward.com/UUID.js
 	public static newGuid(): string {
-		let lut = Utils.newGuid_lut;
+		const lut = Utils.newGuid_lut;
 		const d0 = Math.random() * 0xffffffff | 0;
 		const d1 = Math.random() * 0xffffffff | 0;
 		const d2 = Math.random() * 0xffffffff | 0;
@@ -440,17 +505,17 @@ export class Utils {
 			  lut[d3 & 0xff] + lut[d3 >> 8 & 0xff] + lut[d3 >> 16 & 0xff] + lut[d3 >> 24 & 0xff];
 	}
 
-	//This method accepts a nested object property string (e.g. "home.address?.state") and 
-	//return an array with of strings of object property names (e.g ['home', 'address', 'state'])
-	//http://stackoverflow.com/questions/6491463/accessing-nested-javascript-objects-with-string-key
+	// This method accepts a nested object property string (e.g. "home.address?.state") and
+	// return an array with of strings of object property names (e.g ['home', 'address', 'state'])
+	// http://stackoverflow.com/questions/6491463/accessing-nested-javascript-objects-with-string-key
 	public static dotNotionToArray(dotNotionFielName: string): string[] {
 		if (dotNotionFielName) {
 			let s = dotNotionFielName.replace(/\[(\w+)\]/g, '.$1'); // convert indexes to properties
 			s = s.replace(/^\./, '');           // strip a leading dot
-			//s = s.replace(/\?$/, '');           // strip a trailing question mark (e.g Angular 2 safe binding expression [innerHTML]="home.address?.state")
-			let propNames = s.split('.');
-			for (let idx in propNames) {
-				propNames[idx] = propNames[idx].replace(/\?$/, '');           // strip a trailing question mark (e.g Angular 2 safe binding expression [innerHTML]="home.address?.state")
+			const propNames = s.split('.');
+			for (const idx in propNames) {
+				// strip a trailing question mark (e.g Angular 2 safe binding expression [innerHTML]="home.address?.state")
+				propNames[idx] = propNames[idx].replace(/\?$/, '');
 			}
 			return propNames;
 		}
@@ -479,17 +544,17 @@ export class Utils {
 	public static getObjectPropValue(obj: any, objPropName: string | string[]): any {
 
 		let objPropNames: string[];
-		if (typeof objPropName === 'string')
+		if (typeof objPropName === 'string') {
 			objPropNames = Utils.dotNotionToArray(<string>objPropName);
-		else
+		} else {
 			objPropNames = <Array<string>>objPropName;
+		}
 
 		if (objPropNames) {
-			for (let propName of objPropNames) {
+			for (const propName of objPropNames) {
 				if (obj && propName in obj) {
 					obj = obj[propName];
-				}
-				else {
+				} else {
 					return;
 				}
 			}
@@ -515,6 +580,82 @@ export class Utils {
 
 		return null;
 	}
+
+	// Difference from above: Get a time relevant to start of day.
+	public static getTimeInMillsAlt(timeString: string): number {
+		let timeRegex = /^[0-9][0-9]:[0-9][0-9]$/;
+		let isTimeFormat = timeRegex.test(timeString);
+
+		if (isTimeFormat) {
+			let splitTime = timeString.split(":");
+			let splitHours = Number.parseInt(splitTime[0], 10);
+			let splitMinutes = Number.parseInt(splitTime[1], 10);
+			return ((splitHours * 60 * 60 * 1000) + (splitMinutes * 60 * 1000));
+		}
+		return null;
+	}
+
+	// Assumes that timeInMills is relative to start of day (so max value = (23 * 60 * 60 * 1000) + (59 * 60 * 1000) = 87340000)
+	public static makeTimestringFromMills(timeInMills: number): string {
+		let hours = Math.floor((timeInMills / 1000 / 60 / 60));
+		let minutes = (timeInMills / 1000 / 60) - (hours * 60);
+		let convertedHours = hours.toString(10);
+		if (hours < 10) {
+			convertedHours = "0" + convertedHours;
+		}
+		if (hours === 0) {
+			convertedHours = "00";
+		}
+		let convertedMinutes = minutes.toString(10);
+		if (minutes < 10) {
+			convertedMinutes = "0" + convertedMinutes;
+		}
+		if (minutes === 0) {
+			convertedMinutes = "00";
+		}
+		return (convertedHours + ":" + convertedMinutes);
+	}
+
+	/**
+	 * A middleman function because Java is sending out their enums as the string name instead of the value.
+	 *
+	 * There was a thing P2 did involving Jackson annotations to do the conversion on that side, but for whatever reason we're not doing
+	 * it in Settleit.
+	 *
+	 * Assumes that the Typescript enum is created to match the Java enum.
+	 *
+	 * (Science below. This is all based on default Typescript/Javascript behavior, so if this doesn't work, then it probably got changed.)
+	 * ----------------------------------------------------------------------
+	 *
+	 * Given the enumset:
+	 * enum MyEnum {
+	 *     VALUE_1 = 1,
+	 *     VALUE_2 = 2,
+	 *     VALUE_3 = 5
+	 * }
+	 *
+	 * Object.keys(MyEnum) returns:
+	 * ["1", "2", "5", "VALUE_1", "VALUE_2", "VALUE_3"];
+	 *
+	 * So splitting Object.keys() in half will let us correctly match enum names to their appropriate values.
+	 *
+	 * ----------------------------------------------------------------------
+	 * @param javaValue: The string name of the enum value.
+	 * @param javascriptEnum: A Javascript enum set.
+	 */
+	public static convertJavaEnumNameToJavascriptEnumValue(javaValue: string, javascriptEnum: any): number {
+		const enumMembers = Object.keys(javascriptEnum);
+		if (enumMembers != null && enumMembers.length > 1) {
+			const enumCount: number = enumMembers.length / 2;
+			for (let i = 0; i < enumCount; i++) {
+				if (enumMembers[enumCount + i] === javaValue) {
+					return Number.parseInt(enumMembers[i], 10);
+				}
+			}
+		}
+		return null;
+	}
+
 }
 
 Utils.initStatic();
