@@ -1,5 +1,5 @@
 /**
- * Created by agoodman on 11/23/16.
+ *
  */
 import {CommonRegex} from './common-regex';
 
@@ -9,7 +9,7 @@ import * as S from 'string';
 import * as moment from 'moment-timezone';
 
 
-export class AgUtils {
+export class Utils {
 
 	public static NAN = 0 / 0;
 
@@ -21,9 +21,9 @@ export class AgUtils {
 	}
 
 	static initStatic() {
-		AgUtils.newGuid_lut = [];
+		Utils.newGuid_lut = [];
 		for (let i = 0; i < 256; i++) {
-			AgUtils.newGuid_lut[i] = (i < 16 ? '0' : '') + (i).toString(16);
+			Utils.newGuid_lut[i] = (i < 16 ? '0' : '') + (i).toString(16);
 		}
 	}
 
@@ -58,7 +58,7 @@ export class AgUtils {
 	 * @returns {number}
 	 */
 	public static charsRemaining(str: string, maxLen: number): number {
-		const len = AgUtils.countChars(str);
+		const len = Utils.countChars(str);
 		let remain = maxLen - len;
 		// Since carriage return is 2 chars, if you have one left and press enter, it will display -1.
 		// This is a fix for that edge case
@@ -74,7 +74,7 @@ export class AgUtils {
 	 * @returns {number}
 	 */
 	public static countChars(str: string): number {
-		if (AgUtils.isBlank(str)) {
+		if (Utils.isBlank(str)) {
 			return 0;
 		}
 		let len = str.replace('\r\n', '').length;
@@ -147,7 +147,7 @@ export class AgUtils {
 	}
 
 	public static getMomentFromStringAtStartOfDay(dateStr: any): moment.Moment {
-		let dt = AgUtils.getMomentFromString(dateStr);
+		let dt = Utils.getMomentFromString(dateStr);
 		if (dt && dt.isValid()) {
 			dt = dt.startOf('day');
 		}
@@ -164,7 +164,7 @@ export class AgUtils {
 	}
 
 	public static getCurrentHQDate(): moment.Moment {
-		return AgUtils.getCurrentHQTime().startOf('day');
+		return Utils.getCurrentHQTime().startOf('day');
 	}
 
 
@@ -174,7 +174,7 @@ export class AgUtils {
 	 * @returns {Number}
 	 */
 	public static getNumberFromString(val: any) {
-		const tmpVal = AgUtils.isBlank(val) ? '' : _.isString(val) ? val : val.toString(); // must be string
+		const tmpVal = Utils.isBlank(val) ? '' : _.isString(val) ? val : val.toString(); // must be string
 		let numVal = Number(tmpVal.replace(/[^0-9\.-]+/g, ''));
 		if (tmpVal.length === 0) {
 			numVal = NaN; // blank is not a number
@@ -192,10 +192,10 @@ export class AgUtils {
 
 	// simulate apache StringUtils
 	public static isBlank(a: string): boolean {
-		if (AgUtils.isNil(a)) {
+		if (Utils.isNil(a)) {
 			return true;
 		}
-		if (_.isString(a) && AgUtils.isNullOrWhitespace(a)) {
+		if (_.isString(a) && Utils.isNullOrWhitespace(a)) {
 			return true;
 		}
 		// check object/array is empty
@@ -221,12 +221,12 @@ export class AgUtils {
 	}
 
 	public static isNotBlank(a: string): boolean {
-		return !AgUtils.isBlank(a);
+		return !Utils.isBlank(a);
 	}
 
 	public static isNullOrWhitespace(a: string) {
 		// use lodash
-		if (AgUtils.isNil(a)) {
+		if (Utils.isNil(a)) {
 			return true;
 		}
 		let b: string = a.replace(/\s/g, '');
@@ -234,11 +234,11 @@ export class AgUtils {
 	}
 
 	public static isNil(a: any): boolean {
-		return AgUtils.isNullOrUndefined(a);
+		return Utils.isNullOrUndefined(a);
 	}
 
 	public static isNotNil(a: any): boolean {
-		return !AgUtils.isNullOrUndefined(a);
+		return !Utils.isNullOrUndefined(a);
 	}
 
 	public static isNullOrUndefined(a: any): boolean {
@@ -248,7 +248,7 @@ export class AgUtils {
 
 	//isObjectEmpty returns true if o is an object containing no enumerable members.
 	public static isObjectEmpty(o: Object): boolean {
-		if (AgUtils.isNotNil(o) && _.isObject(o)) {
+		if (Utils.isNotNil(o) && _.isObject(o)) {
 			for (const i in o) {
 				if (o[i] !== undefined && (typeof o[i]) !== 'function') {
 					return false;
@@ -268,7 +268,7 @@ export class AgUtils {
 	public static localStorage = {
 		//Add item to local storage with optional expirationMin
 		setItem: (key: string, obj: any, expirationMin?: number): any => {
-			if (!AgUtils.hasLocalStorage()) {
+			if (!Utils.hasLocalStorage()) {
 				return null;
 			}
 			let expirationTime = null;
@@ -281,7 +281,7 @@ export class AgUtils {
 			return obj;
 		},
 		getItem: (key: string): any => {
-			if (!AgUtils.hasLocalStorage() || !key) {
+			if (!Utils.hasLocalStorage() || !key) {
 				return null;
 			}
 			let record = JSON.parse(window['localStorage'].getItem(key));
@@ -297,7 +297,7 @@ export class AgUtils {
 			}
 		},
 		removeItem: (key: string): void => {
-			if (!AgUtils.hasLocalStorage()) {
+			if (!Utils.hasLocalStorage()) {
 				return;
 			}
 			window['localStorage'].removeItem(key);
@@ -362,7 +362,7 @@ export class AgUtils {
 	 * @returns {number}
 	 */
 	public static stringToCurrency(strNum: any): number {
-		return Math.round(AgUtils.stringToFloat(strNum) * 100) / 100;
+		return Math.round(Utils.stringToFloat(strNum) * 100) / 100;
 	}
 
 	/**
@@ -400,7 +400,7 @@ export class AgUtils {
 			return value;
 		}
 		if (_.isObject(value)) {
-			return AgUtils.NAN;
+			return Utils.NAN;
 		}
 		return +value;
 	}
@@ -429,7 +429,7 @@ export class AgUtils {
 	//http://stackoverflow.com/questions/105034/create-guid-uuid-in-javascript
 	//http://jcward.com/UUID.js
 	public static newGuid(): string {
-		let lut = AgUtils.newGuid_lut;
+		let lut = Utils.newGuid_lut;
 		const d0 = Math.random() * 0xffffffff | 0;
 		const d1 = Math.random() * 0xffffffff | 0;
 		const d2 = Math.random() * 0xffffffff | 0;
@@ -480,7 +480,7 @@ export class AgUtils {
 
 		let objPropNames: string[];
 		if (typeof objPropName === 'string')
-			objPropNames = AgUtils.dotNotionToArray(<string>objPropName);
+			objPropNames = Utils.dotNotionToArray(<string>objPropName);
 		else
 			objPropNames = <Array<string>>objPropName;
 
@@ -517,4 +517,4 @@ export class AgUtils {
 	}
 }
 
-AgUtils.initStatic();
+Utils.initStatic();

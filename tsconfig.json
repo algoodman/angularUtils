@@ -1,0 +1,30 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "paths": {
+      "@common": ["app/common/index.ts"],
+      "@constants": ["app/datatypes/constants/index.ts"],
+      "@viewModels":["app/datatypes/viewmodels/index.ts"],
+      "@enums":["app/datatypes/enums/index.ts"],
+      "@libs":["app/lib/index.ts"],
+      "@config":["app/app.config.ts"],
+      "@services":["app/services/index.ts"]
+    },
+    "outDir": "./dist/out-tsc",
+    "sourceMap": true,
+    "declaration": false,
+    "moduleResolution": "node",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "target": "es5",
+    "baseUrl": "src",
+
+    "typeRoots": [
+      "node_modules/@types"
+    ],
+    "lib": [
+      "es2017",
+      "dom"
+    ]
+  }
+}
