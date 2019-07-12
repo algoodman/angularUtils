@@ -32,7 +32,7 @@
   "devDependencies": {
     "@types/angular": "1.6.54",
     "@types/core-js": "2.5.0",
-    "@types/jquery": "3.3.29",
+    "@types/jquery": "3.4.0",
     "@types/lodash": "4.14.123",
     "@types/moment-timezone": "0.5.12",
     "@types/node": "6.0.45",
@@ -46,7 +46,7 @@
     "gulp-sourcemaps": "1.6.0",
     "gulp-typescript": "2.9.2",
     "gulp-watch": "4.3.5",
-    "jquery": "3.3.1",
+    "jquery": "3.4.0",
     "moment-timezone": "0.5.23",
     "npm-run-all": "3.1.2",
     "typescript": "3.4.3",
